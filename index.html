@@ -22,7 +22,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
 const supabase = createClient(
-  'https://kjjzlkbyzlpkbieboaoo.supabase.co', 
+  'https://kjjzlkbyzlpkbieboaoo.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtqanpsa2J5emxwa2JpZWJvYW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI1MjMxNTQsImV4cCI6MjA3ODA5OTE1NH0.MdoZunGrL5q-UTeT-Rwbapei7d0msNt0g6LG7_rHrHc'
 )
 
@@ -41,7 +41,7 @@ document.getElementById('signup-btn').onclick = async () => {
 
   // Создаём пользователя
   const { data: inserted, error } = await supabase.from('users')
-    .insert([{ id: crypto.randomUUID(), username, password }])
+    .insert([{ username, password }])
     .maybeSingle()
   if (error) return alert('Ошибка создания пользователя: ' + error.message)
 
