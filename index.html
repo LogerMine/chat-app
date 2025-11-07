@@ -33,11 +33,7 @@ document.getElementById('signup-btn').onclick = async () => {
 
   if (!email || !password || !username) return alert('Заполните все поля')
 
-  // Создаем пользователя в Auth
-  const { data: authData, error: authError } = await supabase.auth.signUp({ email, password })
-  if (authError) return alert(authError.message)
-
-  // Проверяем уникальность ника
+  // Проверка никнейма
   const { data: existing } = await supabase.from('users')
     .select('*')
     .eq('username', username)
@@ -45,8 +41,15 @@ document.getElementById('signup-btn').onclick = async () => {
 
   if (existing) return alert('Ник уже занят, выберите другой')
 
-  // Сохраняем ник в таблицу users
-  await supabase.from('users').insert([{ id: authData.user.id, username }])
+  // Создаем пользователя в Auth
+  const { data: authData, error: authError } = await supabase.auth.signUp({ email, password })
+  if (authError) return alert(authError.message)
+
+  // Создаем профиль
+  const { data: inserted, error: insertError } = await supabase.from('users')
+    .insert([{ id: authData.user.id, username }])
+
+  if (insertError) return alert('Не удалось создать профиль: ' + insertError.message)
 
   alert('Регистрация прошла успешно! Можете войти.')
 }
@@ -64,7 +67,7 @@ document.getElementById('login-btn').onclick = async () => {
   const { data: profile, error: profileError } = await supabase.from('users')
     .select('*')
     .eq('id', loginData.user.id)
-    .maybeSingle()  // <- безопасно, решает проблему single()
+    .maybeSingle()
 
   if (profileError) return alert(profileError.message)
   if (!profile) return alert('Профиль не найден')
