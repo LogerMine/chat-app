@@ -7,7 +7,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm" type="module"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-  /* Скролл сообщений с прокруткой вниз */
   #chat-messages {
     display: flex;
     flex-direction: column-reverse;
@@ -15,28 +14,9 @@
     height: calc(100% - 60px);
     padding: 10px;
   }
-
-  /* Сообщения */
-  .msg-self { 
-    background: linear-gradient(90deg, #a5f3fc, #38bdf8); 
-    align-self: flex-end; 
-  }
-  .msg-friend { 
-    background: linear-gradient(90deg, #fca5a5, #f87171); 
-    align-self: flex-start; 
-  }
-
-  .msg { 
-    max-width: 70%; 
-    padding: 8px 12px; 
-    border-radius: 12px; 
-    margin: 4px 0; 
-    color: white; 
-    font-weight: 500;
-  }
-
-  /* Список друзей прокрутка */
-  #friends-list { overflow-y: auto; height: 100%; }
+  .msg-self { background: linear-gradient(90deg, #a5f3fc, #38bdf8); align-self: flex-end; }
+  .msg-friend { background: linear-gradient(90deg, #fca5a5, #f87171); align-self: flex-start; }
+  .msg { max-width: 70%; padding: 8px 12px; border-radius: 12px; margin: 4px 0; color: white; font-weight: 500; }
 </style>
 </head>
 <body class="bg-gradient-to-br from-purple-100 via-purple-200 to-purple-300 min-h-screen flex flex-col">
@@ -99,7 +79,7 @@ async function loadFriends() {
   })
 }
 
-// Выбор друга
+// Выбор друга для чата
 function selectFriend(id, name) {
   selectedFriendId = id
   selectedFriendName = name
@@ -107,23 +87,24 @@ function selectFriend(id, name) {
   loadMessages()
 }
 
-// Загрузка сообщений
+// Загрузка сообщений между пользователем и выбранным другом
 async function loadMessages() {
   if (!selectedFriendId) return
   const { data: messages } = await supabase.from('messages')
     .select('*')
-    .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+    .or(
+      `(sender_id.eq.${userId},receiver_id.eq.${selectedFriendId}),` +
+      `(sender_id.eq.${selectedFriendId},receiver_id.eq.${userId})`
+    )
     .order('created_at', { ascending: true })
 
   const chat = document.getElementById('chat-messages')
   chat.innerHTML = ''
   messages.forEach(msg => {
-    if ((msg.sender_id === userId && msg.receiver_id === selectedFriendId) || (msg.sender_id === selectedFriendId && msg.receiver_id === userId)) {
-      const div = document.createElement('div')
-      div.className = 'msg ' + (msg.sender_id === userId ? 'msg-self' : 'msg-friend')
-      div.innerText = (msg.sender_id === userId ? 'Вы: ' : selectedFriendName + ': ') + msg.content
-      chat.appendChild(div)
-    }
+    const div = document.createElement('div')
+    div.className = 'msg ' + (msg.sender_id === userId ? 'msg-self' : 'msg-friend')
+    div.innerText = (msg.sender_id === userId ? 'Вы: ' : selectedFriendName + ': ') + msg.content
+    chat.appendChild(div)
   })
 }
 
@@ -137,7 +118,7 @@ document.getElementById('send-btn').onclick = async () => {
   loadMessages()
 }
 
-// Добавление друга (простая форма)
+// Добавление друга
 document.getElementById('send-request').onclick = async () => {
   const nickname = document.getElementById('friend-input').value.trim()
   if (!nickname) return alert('Введите ник друга')
@@ -148,14 +129,7 @@ document.getElementById('send-request').onclick = async () => {
   if (!friendUser) return alert('Пользователь не найден')
   if (friendUser.id === userId) return alert('Нельзя добавить себя')
 
-  // Проверка уже существующих друзей
-  const { data: existing } = await supabase.from('friends')
-    .select('*')
-    .or(`user_id.eq.${userId},friend_id.eq.${friendUser.id}`)
-    .maybeSingle()
-  if (existing) return alert('Вы уже друзья')
-
-  // Добавление сразу
+  // Добавляем в friends сразу обе записи
   await supabase.from('friends').insert([
     { user_id: userId, friend_id: friendUser.id },
     { user_id: friendUser.id, friend_id: userId }
