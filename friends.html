@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мои друзья</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 h-screen flex flex-col items-center">
+
+<div class="bg-white rounded-2xl shadow-xl w-96 h-[600px] flex flex-col overflow-hidden mt-10">
+  <div class="p-4 bg-gradient-to-r from-blue-400 to-blue-600 text-white flex justify-between items-center">
+    <h1 class="text-lg font-bold">Мои друзья</h1>
+    <button id="logout" class="text-sm bg-white text-blue-600 px-2 py-1 rounded hover:bg-gray-100">Выйти</button>
+  </div>
+
+  <div class="p-2 flex border-b border-gray-200">
+    <input id="friend-input" type="text" placeholder="Найти друга..." class="flex-1 border rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400">
+    <button id="add-friend" class="ml-2 bg-blue-500 text-white px-3 py-1 rounded-full hover:bg-blue-600">+</button>
+  </div>
+
+  <div id="friends-list" class="flex-1 overflow-y-auto p-3 space-y-2 bg-gradient-to-b from-blue-50 to-blue-100"></div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+const supabaseUrl = 'https://kjjzlkbyzlpkbieboaoo.supabase.co'
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtqanpsa2J5emxwa2JpZWJvYW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI1MjMxNTQsImV4cCI6MjA3ODA5OTE1NH0.MdoZunGrL5q-UTeT-Rwbapei7d0msNt0g6LG7_rHrHc'
+const supabase = createClient(supabaseUrl, supabaseKey)
+
+const { data: { user } } = await supabase.auth.getUser()
+if (!user) location.href = 'index.html'
+
+const list = document.getElementById('friends-list')
+const addBtn = document.getElementById('add-friend')
+const friendInput = document.getElementById('friend-input')
+
+addBtn.onclick = async () => {
+  const name = friendInput.value.trim()
+  if (!name) return
+  const { data: friend } = await supabase.from('users').select('*').eq('username', name).single()
+  if (!friend) return alert('Пользователь не найден')
+  await supabase.from('friends').insert({ user_id: user.id, friend_id: friend.id })
+  loadFriends()
+}
+
+async function loadFriends() {
+  const { data } = await supabase.from('friends').select('friend_id, users!friends_friend_id_fkey(username)').eq('user_id', user.id)
+  list.innerHTML = data.map(f => `<div class="p-2 bg-white rounded-lg shadow hover:bg-blue-100 cursor-pointer" onclick="location.href='chat.html?f=${f.friend_id}'">${f.users.username}</div>`).join('')
+}
+
+loadFriends()
+
+document.getElementById('logout').onclick = async () => {
+  await supabase.auth.signOut()
+  location.href = 'index.html'
+}
+</script>
+</body>
+</html>
