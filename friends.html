@@ -48,12 +48,13 @@ const friendsList = document.getElementById('friends-list')
 
 // Загрузка заявок
 async function loadRequests() {
-  const { data } = await supabase.from('friend_requests')
+  const { data, error } = await supabase.from('friend_requests')
     .select('id,sender_id,users(username)')
     .eq('receiver_id', user.id)
     .eq('status', 'pending')
-    .leftJoin('users', 'friend_requests.sender_id=users.id')
-
+    .leftJoin('users', 'friend_requests.sender_id=users.id')  // убедись, что имя таблицы 'users'
+  
+  if (error) return console.log(error)
   requestsList.innerHTML = data.map(r => `
     <div class="flex justify-between items-center p-3 rounded-xl shadow bg-white">
       <span>${r.users.username} хочет добавить вас</span>
@@ -70,7 +71,10 @@ window.handleRequest = async (id, status) => {
   await supabase.from('friend_requests').update({ status }).eq('id', id)
   if (status === 'accepted') {
     const { data: req } = await supabase.from('friend_requests').select('*').eq('id', id).single()
-    await supabase.from('friends').upsert([{ user_id: req.sender_id, friend_id: req.receiver_id }, { user_id: req.receiver_id, friend_id: req.sender_id }])
+    await supabase.from('friends').upsert([
+      { user_id: req.sender_id, friend_id: req.receiver_id },
+      { user_id: req.receiver_id, friend_id: req.sender_id }
+    ])
   }
   loadRequests()
   loadFriends()
@@ -106,11 +110,22 @@ window.openChat = (friendId, friendName) => {
 document.getElementById('send-request').onclick = async () => {
   const username = document.getElementById('friend-input').value.trim()
   if (!username) return alert('Введите ник')
-  const { data: friendUser } = await supabase.from('users').select('*').eq('username', username).single()
-  if (!friendUser) return alert('Пользователь не найден')
+
+  const { data: friendUser, error } = await supabase.from('users').select('*').eq('username', username).single()
+  if (error || !friendUser) return alert('Пользователь не найден')
   if (friendUser.id === user.id) return alert('Нельзя добавить себя')
+
+  const { data: exists } = await supabase.from('friend_requests')
+    .select('*')
+    .or(`and(sender_id.eq.${user.id},receiver_id.eq.${friendUser.id}),and(sender_id.eq.${friendUser.id},receiver_id.eq.${user.id})`)
+    .eq('status','pending')
+    .single()
+
+  if (exists) return alert('Заявка уже отправлена')
+
   await supabase.from('friend_requests').insert({ sender_id: user.id, receiver_id: friendUser.id })
   alert('Заявка отправлена!')
+  loadRequests()
 }
 
 // Выход
