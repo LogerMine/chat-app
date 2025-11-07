@@ -1,6 +1,33 @@
-<div class="p-2 flex border-b border-gray-200">
-  <input id="friend-input" type="text" placeholder="Найти друга по нику..." class="flex-1 border rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400">
-  <button id="add-friend-btn" class="ml-2 bg-blue-500 text-white px-3 py-1 rounded-full hover:bg-blue-600">Добавить</button>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Друзья</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 flex justify-center pt-10">
+
+<div class="flex flex-col h-[600px] w-96 bg-white rounded-2xl shadow overflow-hidden">
+  <div class="p-4 bg-gradient-to-r from-blue-400 to-blue-600 text-white flex justify-between items-center">
+    <h1 class="text-lg font-bold">Друзья</h1>
+    <button id="logout" class="text-sm bg-white text-blue-600 px-2 py-1 rounded hover:bg-gray-100">Выйти</button>
+  </div>
+
+  <!-- Заявки в друзья -->
+  <div class="p-2 border-b border-gray-200">
+    <h2 class="font-semibold mb-2">Заявки</h2>
+    <div id="requests-list" class="space-y-2"></div>
+  </div>
+
+  <!-- Добавление друга -->
+  <div class="p-2 border-b border-gray-200 flex">
+    <input id="friend-input" type="text" placeholder="Найти друга по нику..." class="flex-1 border rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400">
+    <button id="send-request" class="ml-2 bg-blue-500 text-white px-3 py-1 rounded-full hover:bg-blue-600">Отправить</button>
+  </div>
+
+  <!-- Список друзей -->
+  <div class="flex-1 overflow-y-auto p-2 space-y-2 bg-gradient-to-b from-blue-50 to-blue-100" id="friends-list"></div>
 </div>
 
 <script type="module">
@@ -10,29 +37,87 @@ const supabaseUrl = 'https://kjjzlkbyzlpkbieboaoo.supabase.co'
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtqanpsa2J5emxwa2JpZWJvYW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI1MjMxNTQsImV4cCI6MjA3ODA5OTE1NH0.MdoZunGrL5q-UTeT-Rwbapei7d0msNt0g6LG7_rHrHc'
 const supabase = createClient(supabaseUrl, supabaseKey)
 
-const { data: { user: currentUser } } = await supabase.auth.getUser()
+const { data: { user } } = await supabase.auth.getUser()
 
-const input = document.getElementById('friend-input')
-const btn = document.getElementById('add-friend-btn')
+const requestsList = document.getElementById('requests-list')
+const friendsList = document.getElementById('friends-list')
 
-btn.addEventListener('click', async () => {
-  const username = input.value.trim()
-  if (!username) return alert('Введите ник друга')
+// Загрузка заявок
+async function loadRequests() {
+  const { data } = await supabase.from('friend_requests')
+    .select('id,sender_id,users(username)')
+    .eq('receiver_id', user.id)
+    .eq('status', 'pending')
+    .leftJoin('users', 'friend_requests.sender_id=users.id')
 
-  // Ищем пользователя по нику
-  const { data: friendUser, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('username', username)
-    .single()
-  if (error || !friendUser) return alert('Пользователь не найден')
+  requestsList.innerHTML = data.map(r => `
+    <div class="flex justify-between items-center p-2 bg-white rounded shadow">
+      <span>${r.users.username}</span>
+      <div class="space-x-1">
+        <button onclick="handleRequest(${r.id}, 'accepted')" class="px-2 py-1 bg-green-500 text-white rounded">Принять</button>
+        <button onclick="handleRequest(${r.id}, 'rejected')" class="px-2 py-1 bg-red-500 text-white rounded">Отклонить</button>
+      </div>
+    </div>
+  `).join('')
+}
 
-  // Добавляем дружбу (двусторонне)
-  await supabase.from('friends').upsert([
-    { user_id: currentUser.id, friend_id: friendUser.id },
-    { user_id: friendUser.id, friend_id: currentUser.id }
-  ])
+// Принять / отклонить заявку
+window.handleRequest = async (id, status) => {
+  await supabase.from('friend_requests').update({ status }).eq('id', id)
+  if (status === 'accepted') {
+    const { data: req } = await supabase.from('friend_requests').select('*').eq('id', id).single()
+    await supabase.from('friends').upsert([{user_id: req.sender_id, friend_id: req.receiver_id},{user_id: req.receiver_id, friend_id: req.sender_id}])
+  }
+  loadRequests()
+  loadFriends()
+}
 
-  alert(`${username} добавлен в друзья!`)
-})
+// Загрузка друзей
+async function loadFriends() {
+  const { data } = await supabase.from('friends')
+    .select('friend_id, users(username)')
+    .eq('user_id', user.id)
+    .leftJoin('users', 'friends.friend_id=users.id')
+
+  friendsList.innerHTML = data.map(f => `
+    <div onclick="openChat('${f.friend_id}','${f.users.username}')" class="cursor-pointer flex justify-between items-center p-2 bg-white rounded shadow hover:bg-blue-100">
+      <span>${f.users.username}</span>
+      <button onclick="deleteFriend('${f.friend_id}');event.stopPropagation();" class="px-2 py-1 bg-red-500 text-white rounded">Удалить</button>
+    </div>
+  `).join('')
+}
+
+// Удалить друга
+window.deleteFriend = async (friendId) => {
+  await supabase.from('friends').delete().or(`and(user_id.eq.${user.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${user.id})`)
+  loadFriends()
+}
+
+// Открыть чат
+window.openChat = (friendId, friendName) => {
+  location.href = `chat.html?f=${friendId}&n=${friendName}`
+}
+
+// Отправка заявки в друзья
+document.getElementById('send-request').onclick = async () => {
+  const username = document.getElementById('friend-input').value.trim()
+  if (!username) return alert('Введите ник')
+  const { data: friendUser } = await supabase.from('users').select('*').eq('username', username).single()
+  if (!friendUser) return alert('Пользователь не найден')
+  if (friendUser.id === user.id) return alert('Нельзя добавить себя')
+  await supabase.from('friend_requests').insert({ sender_id: user.id, receiver_id: friendUser.id })
+  alert('Заявка отправлена!')
+}
+
+// Выход
+document.getElementById('logout').onclick = async () => {
+  await supabase.auth.signOut()
+  location.href = 'index.html'
+}
+
+// Инициализация
+loadRequests()
+loadFriends()
 </script>
+</body>
+</html>
