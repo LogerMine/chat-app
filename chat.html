@@ -8,12 +8,12 @@
 </head>
 <body class="bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 flex justify-center pt-10">
 
-<div class="flex flex-col h-[600px] w-96 bg-white rounded-2xl shadow overflow-hidden">
-  <div id="chat-header" class="p-4 bg-gradient-to-r from-blue-400 to-blue-600 text-white font-bold"></div>
+<div class="flex flex-col h-[700px] w-96 bg-white rounded-3xl shadow-2xl overflow-hidden">
+  <div id="chat-header" class="p-4 bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold text-lg"></div>
   <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 bg-gradient-to-b from-blue-50 to-blue-100"></div>
   <div class="p-3 border-t border-gray-200 flex">
     <input id="message-input" class="flex-1 px-3 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Написать сообщение...">
-    <button id="send-btn" class="ml-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Отправить</button>
+    <button id="send-btn" class="ml-2 px-4 py-2 bg-gradient-to-r from-blue-400 to-blue-600 text-white rounded-xl hover:from-blue-500 hover:to-blue-700 transition">Отправить</button>
   </div>
 </div>
 
@@ -28,7 +28,6 @@ const { data: { user } } = await supabase.auth.getUser()
 const params = new URLSearchParams(window.location.search)
 const friendId = params.get('f')
 const friendName = params.get('n')
-
 document.getElementById('chat-header').innerText = friendName
 
 const chatMessages = document.getElementById('chat-messages')
@@ -45,7 +44,7 @@ async function loadMessages() {
   chatMessages.innerHTML = data.map(msg => {
     const isMe = msg.sender_id === user.id
     const senderName = isMe ? 'Вы' : friendName
-    return `<div class="p-2 rounded-lg shadow max-w-xs ${isMe ? 'bg-blue-200 ml-auto' : 'bg-white'}">
+    return `<div class="p-2 rounded-xl shadow max-w-xs ${isMe ? 'bg-blue-200 ml-auto' : 'bg-white'}">
       <div class="text-sm font-bold">${senderName}</div>
       <div>${msg.content}</div>
     </div>`
