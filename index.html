@@ -36,9 +36,7 @@ document.getElementById('register').onclick = async () => {
   const { data: authData, error: authError } = await supabase.auth.signUp({ email, password })
   if (authError) return alert(authError.message)
 
-  const { error: dbError } = await supabase.from('users').insert([{ id: authData.user.id, username: nickname }])
-  if (dbError) return alert(dbError.message)
-
+  await supabase.from('users').insert([{ id: authData.user.id, username: nickname }])
   alert('Регистрация успешна! Теперь войдите.')
 }
 
