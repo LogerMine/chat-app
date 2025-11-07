@@ -8,22 +8,22 @@
 </head>
 <body class="bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 flex justify-center pt-10">
 
-<div class="flex flex-col h-[600px] w-96 bg-white rounded-2xl shadow overflow-hidden">
-  <div class="p-4 bg-gradient-to-r from-blue-400 to-blue-600 text-white flex justify-between items-center">
-    <h1 class="text-lg font-bold">Друзья</h1>
-    <button id="logout" class="text-sm bg-white text-blue-600 px-2 py-1 rounded hover:bg-gray-100">Выйти</button>
+<div class="flex flex-col h-[700px] w-96 bg-white rounded-3xl shadow-2xl overflow-hidden">
+  <div class="p-4 bg-gradient-to-r from-blue-500 to-blue-700 text-white flex justify-between items-center font-bold text-lg">
+    <span>Друзья</span>
+    <button id="logout" class="px-2 py-1 bg-white text-blue-600 rounded hover:bg-gray-100">Выйти</button>
   </div>
 
   <!-- Заявки в друзья -->
   <div class="p-2 border-b border-gray-200">
-    <h2 class="font-semibold mb-2">Заявки</h2>
+    <h2 class="font-semibold mb-2">Заявки в друзья</h2>
     <div id="requests-list" class="space-y-2"></div>
   </div>
 
   <!-- Добавление друга -->
   <div class="p-2 border-b border-gray-200 flex">
-    <input id="friend-input" type="text" placeholder="Найти друга по нику..." class="flex-1 border rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400">
-    <button id="send-request" class="ml-2 bg-blue-500 text-white px-3 py-1 rounded-full hover:bg-blue-600">Отправить</button>
+    <input id="friend-input" type="text" placeholder="Поиск пользователя..." class="flex-1 border rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400">
+    <button id="send-request" class="ml-2 px-3 py-1 rounded-full bg-gradient-to-r from-purple-400 to-purple-600 text-white hover:from-purple-500 hover:to-purple-700 transition">Найти</button>
   </div>
 
   <!-- Список друзей -->
@@ -38,7 +38,6 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 const { data: { user } } = await supabase.auth.getUser()
-
 const requestsList = document.getElementById('requests-list')
 const friendsList = document.getElementById('friends-list')
 
@@ -51,28 +50,28 @@ async function loadRequests() {
     .leftJoin('users', 'friend_requests.sender_id=users.id')
 
   requestsList.innerHTML = data.map(r => `
-    <div class="flex justify-between items-center p-2 bg-white rounded shadow">
-      <span>${r.users.username}</span>
-      <div class="space-x-1">
-        <button onclick="handleRequest(${r.id}, 'accepted')" class="px-2 py-1 bg-green-500 text-white rounded">Принять</button>
-        <button onclick="handleRequest(${r.id}, 'rejected')" class="px-2 py-1 bg-red-500 text-white rounded">Отклонить</button>
+    <div class="flex justify-between items-center p-2 rounded-xl shadow bg-white">
+      <span>${r.users.username} хочет добавить вас</span>
+      <div class="flex space-x-1">
+        <button onclick="handleRequest(${r.id}, 'accepted')" class="px-2 py-1 rounded-xl bg-gradient-to-r from-green-400 to-green-600 text-white hover:from-green-500 hover:to-green-700 transition">Принять</button>
+        <button onclick="handleRequest(${r.id}, 'rejected')" class="px-2 py-1 rounded-xl bg-gradient-to-r from-red-400 to-red-600 text-white hover:from-red-500 hover:to-red-700 transition">Отклонить</button>
       </div>
     </div>
   `).join('')
 }
 
-// Принять / отклонить заявку
+// Обработка заявки
 window.handleRequest = async (id, status) => {
   await supabase.from('friend_requests').update({ status }).eq('id', id)
   if (status === 'accepted') {
     const { data: req } = await supabase.from('friend_requests').select('*').eq('id', id).single()
-    await supabase.from('friends').upsert([{user_id: req.sender_id, friend_id: req.receiver_id},{user_id: req.receiver_id, friend_id: req.sender_id}])
+    await supabase.from('friends').upsert([{ user_id: req.sender_id, friend_id: req.receiver_id }, { user_id: req.receiver_id, friend_id: req.sender_id }])
   }
   loadRequests()
   loadFriends()
 }
 
-// Загрузка друзей
+// Список друзей
 async function loadFriends() {
   const { data } = await supabase.from('friends')
     .select('friend_id, users(username)')
@@ -80,25 +79,25 @@ async function loadFriends() {
     .leftJoin('users', 'friends.friend_id=users.id')
 
   friendsList.innerHTML = data.map(f => `
-    <div onclick="openChat('${f.friend_id}','${f.users.username}')" class="cursor-pointer flex justify-between items-center p-2 bg-white rounded shadow hover:bg-blue-100">
+    <div onclick="openChat('${f.friend_id}','${f.users.username}')" class="cursor-pointer flex justify-between items-center p-2 rounded-xl shadow bg-white hover:bg-blue-100">
       <span>${f.users.username}</span>
-      <button onclick="deleteFriend('${f.friend_id}');event.stopPropagation();" class="px-2 py-1 bg-red-500 text-white rounded">Удалить</button>
+      <button onclick="deleteFriend('${f.friend_id}');event.stopPropagation();" class="px-2 py-1 rounded-xl bg-red-400 text-white hover:bg-red-500 transition">Удалить</button>
     </div>
   `).join('')
 }
 
-// Удалить друга
+// Удаление друга
 window.deleteFriend = async (friendId) => {
   await supabase.from('friends').delete().or(`and(user_id.eq.${user.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${user.id})`)
   loadFriends()
 }
 
-// Открыть чат
+// Открытие чата
 window.openChat = (friendId, friendName) => {
   location.href = `chat.html?f=${friendId}&n=${friendName}`
 }
 
-// Отправка заявки в друзья
+// Поиск пользователя и отправка заявки
 document.getElementById('send-request').onclick = async () => {
   const username = document.getElementById('friend-input').value.trim()
   if (!username) return alert('Введите ник')
