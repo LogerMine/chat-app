@@ -25,14 +25,12 @@
 
 <div class="flex flex-1 gap-4 h-[80vh]">
 
-  <!-- Левая колонка: друзья -->
   <div class="w-1/3 bg-white rounded-2xl shadow flex flex-col p-4">
-    <input id="friend-input" placeholder="Найти или добавить друга" class="border mb-3 px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400">
+    <input id="friend-input" placeholder="Найти друга (email или ник)" class="border mb-3 px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400">
     <button id="send-request" class="bg-green-400 px-3 py-2 rounded-xl hover:bg-green-500 mb-3">Добавить друга</button>
     <div id="friends-list" class="flex-1 overflow-y-auto"></div>
   </div>
 
-  <!-- Правая колонка: чат -->
   <div class="flex-1 bg-white rounded-2xl shadow flex flex-col p-4">
     <div id="chat-header" class="font-bold mb-2">Выберите друга для чата</div>
     <div id="chat-messages" class="flex-1 flex flex-col-reverse mb-2"></div>
@@ -52,39 +50,35 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtqanpsa2J5emxwa2JpZWJvYW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI1MjMxNTQsImV4cCI6MjA3ODA5OTE1NH0.MdoZunGrL5q-UTeT-Rwbapei7d0msNt0g6LG7_rHrHc'
 )
 
-const userId = localStorage.getItem('user_id')
-const username = localStorage.getItem('username')
+const { data: { session } } = await supabase.auth.getSession()
+if (!session) window.location.href = 'index.html'
+
+const userId = session.user.id
+const username = localStorage.getItem('username') || session.user.email.split('@')[0]
 document.getElementById('my-name').innerText = username
 
 let selectedFriendId = null
 let selectedFriendName = null
 
-// Загрузка друзей
-  
 async function loadFriends() {
-  // Получаем друзей текущего пользователя
   const { data: friends, error } = await supabase
     .from('friends')
-    .select('friend_id, friend:friend_id(username)')
+    .select('friend_id, friend:friend_id(email)')
     .eq('user_id', userId)
-
   if (error) return console.error(error)
 
   const container = document.getElementById('friends-list')
   container.innerHTML = ''
-
   friends.forEach(f => {
-    const friendNick = f.friend.username
+    const name = f.friend.email.split('@')[0]
     const div = document.createElement('div')
     div.className = 'p-2 rounded-xl hover:bg-purple-100 cursor-pointer'
-    div.innerText = friendNick
-    div.onclick = () => selectFriend(f.friend_id, friendNick)
+    div.innerText = name
+    div.onclick = () => selectFriend(f.friend_id, name)
     container.appendChild(div)
   })
 }
 
-
-// Выбор друга для чата
 function selectFriend(id, name) {
   selectedFriendId = id
   selectedFriendName = name
@@ -92,7 +86,6 @@ function selectFriend(id, name) {
   loadMessages()
 }
 
-// Загрузка сообщений между пользователем и выбранным другом
 async function loadMessages() {
   if (!selectedFriendId) return
   const { data: messages } = await supabase.from('messages')
@@ -113,7 +106,6 @@ async function loadMessages() {
   })
 }
 
-// Отправка сообщения
 document.getElementById('send-btn').onclick = async () => {
   const input = document.getElementById('chat-input')
   const content = input.value.trim()
@@ -123,18 +115,18 @@ document.getElementById('send-btn').onclick = async () => {
   loadMessages()
 }
 
-// Добавление друга
 document.getElementById('send-request').onclick = async () => {
   const nickname = document.getElementById('friend-input').value.trim()
   if (!nickname) return alert('Введите ник друга')
-  const { data: friendUser } = await supabase.from('users')
+  const email = `${nickname}@gera.local`
+  const { data: friendUser } = await supabase
+    .from('auth.users')
     .select('*')
-    .eq('username', nickname)
+    .eq('email', email)
     .maybeSingle()
   if (!friendUser) return alert('Пользователь не найден')
   if (friendUser.id === userId) return alert('Нельзя добавить себя')
 
-  // Добавляем в friends сразу обе записи
   await supabase.from('friends').insert([
     { user_id: userId, friend_id: friendUser.id },
     { user_id: friendUser.id, friend_id: userId }
