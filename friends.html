@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GeraChat</title>
+<title>GeraChat2</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm" type="module"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
@@ -60,24 +60,29 @@ let selectedFriendId = null
 let selectedFriendName = null
 
 // Загрузка друзей
+  
 async function loadFriends() {
-  const { data: friends } = await supabase.from('friends')
-    .select('friend_id, users(username)')
+  // Получаем друзей текущего пользователя
+  const { data: friends, error } = await supabase
+    .from('friends')
+    .select('friend_id, friend:friend_id(username)')
     .eq('user_id', userId)
-    .leftJoin('users', 'friends.friend_id=users.id')
+
+  if (error) return console.error(error)
 
   const container = document.getElementById('friends-list')
   container.innerHTML = ''
-  if (!friends) return
 
   friends.forEach(f => {
+    const friendNick = f.friend.username
     const div = document.createElement('div')
     div.className = 'p-2 rounded-xl hover:bg-purple-100 cursor-pointer'
-    div.innerText = f.users.username
-    div.onclick = () => selectFriend(f.friend_id, f.users.username)
+    div.innerText = friendNick
+    div.onclick = () => selectFriend(f.friend_id, friendNick)
     container.appendChild(div)
   })
 }
+
 
 // Выбор друга для чата
 function selectFriend(id, name) {
