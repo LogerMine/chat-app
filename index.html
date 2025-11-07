@@ -14,51 +14,64 @@
 
   <input id="email" type="email" placeholder="Email" class="border w-full mb-3 px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400">
   <input id="password" type="password" placeholder="Пароль" class="border w-full mb-3 px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400">
-  <input id="nickname" type="text" placeholder="Ник" class="border w-full mb-4 px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400">
-  
-  <button id="register" class="w-full py-2 mb-3 text-white font-bold rounded-xl bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 transition">Регистрация</button>
-  <button id="login" class="w-full py-2 font-bold rounded-xl bg-gradient-to-r from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white transition">Войти</button>
+  <input id="username" type="text" placeholder="Ник" class="border w-full mb-3 px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400">
+
+  <button id="signup-btn" class="bg-blue-500 text-white px-4 py-2 rounded-xl w-full mb-3 hover:bg-blue-600">Зарегистрироваться</button>
+  <button id="login-btn" class="bg-green-500 text-white px-4 py-2 rounded-xl w-full hover:bg-green-600">Войти</button>
 </div>
 
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-const supabaseUrl = 'https://kjjzlkbyzlpkbieboaoo.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtqanpsa2J5emxwa2JpZWJvYW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI1MjMxNTQsImV4cCI6MjA3ODA5OTE1NH0.MdoZunGrL5q-UTeT-Rwbapei7d0msNt0g6LG7_rHrHc'
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = createClient('https://kjjzlkbyzlpkbieboaoo.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtqanpsa2J5emxwa2JpZWJvYW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI1MjMxNTQsImV4cCI6MjA3ODA5OTE1NH0.MdoZunGrL5q-UTeT-Rwbapei7d0msNt0g6LG7_rHrHc')
 
 // Регистрация
-document.getElementById('register').onclick = async () => {
+document.getElementById('signup-btn').onclick = async () => {
   const email = document.getElementById('email').value.trim()
-  const password = document.getElementById('password').value
-  const nickname = document.getElementById('nickname').value.trim()
-  if (!email || !password || !nickname) return alert('Заполните все поля')
+  const password = document.getElementById('password').value.trim()
+  const username = document.getElementById('username').value.trim()
 
-  // Создаем пользователя в Supabase Auth
+  if (!email || !password || !username) return alert('Заполните все поля')
+
+  // Создаем пользователя в Auth
   const { data: authData, error: authError } = await supabase.auth.signUp({ email, password })
   if (authError) return alert(authError.message)
 
-  // Сохраняем ник в таблице users
-  if (authData.user) {
-    const { error: dbError } = await supabase.from('users').insert([{ id: authData.user.id, username: nickname }])
-    if (dbError) return alert(dbError.message)
-    alert('Регистрация успешна! Теперь войдите.')
-  }
+  // Проверяем уникальность ника
+  const { data: existing } = await supabase.from('users')
+    .select('*')
+    .eq('username', username)
+    .maybeSingle()
+
+  if (existing) return alert('Ник уже занят, выберите другой')
+
+  // Сохраняем ник в таблицу users
+  await supabase.from('users').insert([{ id: authData.user.id, username }])
+
+  alert('Регистрация прошла успешно! Можете войти.')
 }
 
 // Вход
-document.getElementById('login').onclick = async () => {
+document.getElementById('login-btn').onclick = async () => {
   const email = document.getElementById('email').value.trim()
-  const password = document.getElementById('password').value
-  const { data: loginData, error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) return alert(error.message)
+  const password = document.getElementById('password').value.trim()
+  if (!email || !password) return alert('Заполните email и пароль')
 
-  // Получаем ник из таблицы users
-  const { data: profile, error: profileError } = await supabase.from('users').select('*').eq('id', loginData.user.id).single()
+  const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ email, password })
+  if (loginError) return alert(loginError.message)
+
+  // Загружаем профиль
+  const { data: profile, error: profileError } = await supabase.from('users')
+    .select('*')
+    .eq('id', loginData.user.id)
+    .maybeSingle()  // <- безопасно, решает проблему single()
+
   if (profileError) return alert(profileError.message)
+  if (!profile) return alert('Профиль не найден')
 
-  localStorage.setItem('nickname', profile.username)
-  location.href = 'friends.html'
+  localStorage.setItem('user_id', loginData.user.id)
+  localStorage.setItem('username', profile.username)
+  window.location.href = 'friends.html'
 }
 </script>
 </body>
