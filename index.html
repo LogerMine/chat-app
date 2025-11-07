@@ -39,7 +39,7 @@ document.getElementById('signup-btn').onclick = async () => {
     .maybeSingle()
   if (existing) return alert('Ник уже занят')
 
-  // Создаём пользователя с ником и паролем
+  // Создаём пользователя
   const { data: inserted, error } = await supabase.from('users')
     .insert([{ id: crypto.randomUUID(), username, password }])
     .maybeSingle()
@@ -54,7 +54,6 @@ document.getElementById('login-btn').onclick = async () => {
   const password = document.getElementById('password').value.trim()
   if (!username || !password) return alert('Заполните все поля')
 
-  // Проверяем ник + пароль
   const { data: user, error } = await supabase.from('users')
     .select('*')
     .eq('username', username)
