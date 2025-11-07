@@ -3,20 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Вход | Чат Supabase</title>
+<title>Регистрация / Вход</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 h-screen flex items-center justify-center">
 
 <div class="bg-white p-8 rounded-2xl shadow-xl w-80 text-center">
   <img src="logo.png" class="w-16 h-16 mx-auto mb-4 rounded-full" alt="Лого">
-  <h1 class="text-xl font-bold text-blue-600 mb-4">Добро пожаловать!</h1>
+  <h1 class="text-xl font-bold text-blue-600 mb-4">Регистрация / Вход</h1>
 
-  <input id="email" type="email" placeholder="Email" class="border w-full mb-3 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
-  <input id="password" type="password" placeholder="Пароль" class="border w-full mb-3 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+  <input id="email" type="email" placeholder="Email" class="border w-full mb-2 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+  <input id="password" type="password" placeholder="Пароль" class="border w-full mb-2 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+  <input id="nickname" type="text" placeholder="Ник" class="border w-full mb-3 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
   
-  <button id="login" class="w-full bg-blue-500 text-white rounded-lg py-2 hover:bg-blue-600 mb-2">Войти</button>
-  <button id="register" class="w-full bg-gray-200 text-blue-600 rounded-lg py-2 hover:bg-gray-300">Регистрация</button>
+  <button id="register" class="w-full bg-blue-500 text-white rounded-lg py-2 hover:bg-blue-600 mb-2">Регистрация</button>
+  <button id="login" class="w-full bg-gray-200 text-blue-600 rounded-lg py-2 hover:bg-gray-300">Войти</button>
 </div>
 
 <script type="module">
@@ -26,20 +27,31 @@ const supabaseUrl = 'https://kjjzlkbyzlpkbieboaoo.supabase.co'
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtqanpsa2J5emxwa2JpZWJvYW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI1MjMxNTQsImV4cCI6MjA3ODA5OTE1NH0.MdoZunGrL5q-UTeT-Rwbapei7d0msNt0g6LG7_rHrHc'
 const supabase = createClient(supabaseUrl, supabaseKey)
 
+document.getElementById('register').onclick = async () => {
+  const email = document.getElementById('email').value
+  const password = document.getElementById('password').value
+  const nickname = document.getElementById('nickname').value.trim()
+  if (!email || !password || !nickname) return alert('Заполните все поля')
+
+  // Регистрация в Supabase Auth
+  const { data: authData, error: authError } = await supabase.auth.signUp({ email, password })
+  if (authError) return alert(authError.message)
+
+  // Сохраняем ник в таблице users
+  const { error: dbError } = await supabase.from('users').insert([
+    { id: authData.user.id, username: nickname }
+  ])
+  if (dbError) return alert(dbError.message)
+
+  alert('Регистрация успешна! Теперь войдите.')
+}
+
 document.getElementById('login').onclick = async () => {
   const email = document.getElementById('email').value
   const password = document.getElementById('password').value
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) return alert(error.message)
   location.href = 'friends.html'
-}
-
-document.getElementById('register').onclick = async () => {
-  const email = document.getElementById('email').value
-  const password = document.getElementById('password').value
-  const { error } = await supabase.auth.signUp({ email, password })
-  if (error) return alert(error.message)
-  alert('Регистрация успешна! Теперь войдите.')
 }
 </script>
 </body>
